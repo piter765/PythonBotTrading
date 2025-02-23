@@ -10,3 +10,4 @@ class Strategy(Base):
   max_value = Column(Float, nullable=False)
   amount = Column(Float, nullable=False)
   strategy_type = Column(String, default="FIVE_TEN_FIFTEEN")
+  active = Column(String, default=False)

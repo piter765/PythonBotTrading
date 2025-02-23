@@ -76,3 +76,4 @@ docker-compose.override.yml
 
 # Ignore local environment variables
 .envrc
+trading_bot.db
