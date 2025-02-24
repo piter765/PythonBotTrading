@@ -1,9 +1,15 @@
+from models.order import Order
+from database.order import OrderManager
+from database.strategy import StrategyManager
+
 class FiveTenFifteen:
     """Trading strategy that places buy orders in a decreasing price range 
     with increasing take-profit percentages."""
 
-    def __init__(self, api):
+    def __init__(self, api, db):
         self.api = api
+        self.order_manager = OrderManager(db)
+        self.strategy_manager = StrategyManager(db)
         self.min_value = 0
         self.max_value = 0
 
@@ -22,11 +28,14 @@ class FiveTenFifteen:
         if existing_strategy:
             print(f"Strategy for {symbol} already exists. Placing missing orders...")
         else:
-            # Save new strategy in the database
-            existing_strategy = self.strategy_manager.save_strategy(symbol, min_value, max_value, amount)
+            try:
+                existing_strategy = self.strategy_manager.save_strategy(symbol, min_value, max_value, amount)
+            except Exception as e:
+                print(f"Error saving strategy in database: {e}")
 
-        # Cancel existing orders for safety
-        self.cancel_existing_orders(symbol)
+
+        # Sync database with Binance before proceeding
+        self.order_manager.sync_with_binance(self.api, symbol)
 
         # Get current open orders
         open_orders = self.get_open_orders(symbol)
@@ -60,16 +69,16 @@ class FiveTenFifteen:
         """Cancels all open orders before starting the strategy to avoid conflicts."""
         open_orders, err = self.api.get_open_orders(symbol)
         if err:
-            raise Exception(f"Error fetching open orders: {err}")
+            raise Exception(f"Error fetching open orders from api: {err}")
 
         for order in open_orders:
             self.api.cancel_order(order['orderId'], symbol)
 
     def get_open_orders(self, symbol):
         """Returns a list of currently open orders for the given symbol."""
-        open_orders, err = self.api.get_open_orders(symbol)
+        open_orders, err = self.order_manager.get_open_orders(symbol)
         if err:
-            raise Exception(f"Error fetching open orders: {err}")
+            raise Exception(f"Error fetching open orders from database: {err}")
         return open_orders
 
     def generate_order_prices(self, min_value, max_value):
